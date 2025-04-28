@@ -49,6 +49,9 @@ public class TranslateBot extends TelegramLongPollingBot {
         Long chatId = message.getChatId();
         String text = message.getText();
 
+        List<String> langs = List.of("EN", "RU", "FR", "DE", "ES");
+        String cleaned = text.replaceAll("[^A-Z]", "").toUpperCase();
+
         switch (text) {
             case "/start", "🏠 Main Menu" -> {
                 sendTextMessage(chatId, "👋 Welcome! Please choose your source and target languages.");
@@ -59,29 +62,19 @@ public class TranslateBot extends TelegramLongPollingBot {
                 languageSetMode.put(userId, "source");
                 sendTextMessage(chatId, "📥 Select source language:");
                 sendLangOptions(chatId);
-                languageSetMode.put(userId, "target");
-                sendTextMessage(chatId, "📤 Select target language:");
-                sendLangOptions(chatId);
                 return;
             }
             case "🌐 Set Target Language" -> {
                 languageSetMode.put(userId, "target");
                 sendTextMessage(chatId, "📤 Select target language:");
                 sendLangOptions(chatId);
-                languageSetMode.put(userId, "source");
-                sendTextMessage(chatId, "📥 Select source language:");
-                sendLangOptions(chatId);
                 return;
-
             }
         }
 
-        List<String> langs = List.of("EN", "RU", "FR", "DE", "ES");
-        String cleaned = text.replaceAll("[^A-Z]", "").toUpperCase();
-
         if (langs.contains(cleaned)) {
             if (!languageSetMode.containsKey(userId)) {
-                sendTextMessage(chatId, "❗ Please choose whether you're setting source or target language.");
+                sendTextMessage(chatId, "❗ Please choose whether you're setting source or target language first.");
                 sendLanguageMenu(chatId);
                 return;
             }
@@ -91,11 +84,34 @@ public class TranslateBot extends TelegramLongPollingBot {
                 if ("source".equals(mode)) {
                     preferenceRepo.savePreferences(userId, cleaned, preferenceRepo.getTargetLang(userId));
                     sendTextMessage(chatId, "✅ Source language set to " + cleaned);
-                } else {
+
+                    // If target not set, immediately ask
+                    if (preferenceRepo.getTargetLang(userId) == null) {
+                        languageSetMode.put(userId, "target");
+                        sendTextMessage(chatId, "📤 Now select your target language:");
+                        sendLangOptions(chatId);
+                        return;
+                    }
+
+                } else if ("target".equals(mode)) {
                     preferenceRepo.savePreferences(userId, preferenceRepo.getSourceLang(userId), cleaned);
                     sendTextMessage(chatId, "✅ Target language set to " + cleaned);
+
+                    // If source not set, immediately ask
+                    if (preferenceRepo.getSourceLang(userId) == null) {
+                        languageSetMode.put(userId, "source");
+                        sendTextMessage(chatId, "📥 Now select your source language:");
+                        sendLangOptions(chatId);
+                        return;
+                    }
                 }
-                languageSetMode.remove(userId); // clear after use
+
+                // Clear mode after both are set
+                languageSetMode.remove(userId);
+
+                // Optionally: inform user setup is complete
+                sendTextMessage(chatId, "🏁 Language setup complete! Now you can send a text to translate.");
+
             } catch (SQLException e) {
                 e.printStackTrace();
                 sendTextMessage(chatId, "❌ Error saving language preference");
@@ -103,7 +119,7 @@ public class TranslateBot extends TelegramLongPollingBot {
             return;
         }
 
-        // Translation handling
+        // If it's not a command and not a language, assume it's text to translate
         try {
             String suggestion = WordHelper.getSpellingSuggestion(text);
             String input = suggestion != null ? suggestion : text;
@@ -139,7 +155,6 @@ public class TranslateBot extends TelegramLongPollingBot {
             sendTextMessage(chatId, "❌ Translation failed");
         }
     }
-
     private void sendTextMessage(Long chatId, String text) {
         SendMessage message = new SendMessage(chatId.toString(), text);
         try {
