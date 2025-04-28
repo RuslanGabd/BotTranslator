@@ -127,7 +127,6 @@ public class TranslateBot extends TelegramLongPollingBot {
             return;
         }
 
-        // If it's not a command and not a language, assume it's text to translate
         try {
             String suggestion = WordHelper.getSpellingSuggestion(text);
             String input = suggestion != null ? suggestion : text;
@@ -135,19 +134,26 @@ public class TranslateBot extends TelegramLongPollingBot {
             String sourceLang = preferenceRepo.getSourceLang(userId);
             String targetLang = preferenceRepo.getTargetLang(userId);
 
-            if (sourceLang.equalsIgnoreCase("RU") && !isProbablyCyrillic(text)) {
-                // Expected Russian, but text is not Cyrillic
+            boolean autoDetect = false;
+
+            if (sourceLang != null) {
+                if (sourceLang.equalsIgnoreCase("RU") && !isProbablyCyrillic(input)) {
+                    autoDetect = true;
+                } else if (sourceLang.equalsIgnoreCase("EN") && isProbablyCyrillic(input)) {
+                    autoDetect = true;
+                }
+            }
+
+            if (autoDetect) {
                 sourceLang = null; // Let DeepL auto-detect
                 sendTextMessage(chatId, "🔍 Auto-detecting input language...");
             }
 
-            if (sourceLang.equalsIgnoreCase("EN") && isProbablyCyrillic(text)) {
-                // Expected English, but text is Cyrillic
-                sourceLang = null; // Let DeepL auto-detect
-                sendTextMessage(chatId, "🔍 Auto-detecting input language...");
+            if (sourceLang == null) {
+                sendTextMessage(chatId, "🌎 Detecting the input language automatically...");
             }
 
-            String ipa = WordHelper.getIPAFromWiktionary(input, sourceLang);
+            String ipa = WordHelper.getIPAFromWiktionary(input, (sourceLang != null ? sourceLang : "EN"));
             String audio = WordHelper.getAudioUrl(input);
             String translated = translator.translate(input, sourceLang, targetLang);
 
@@ -162,6 +168,11 @@ public class TranslateBot extends TelegramLongPollingBot {
                 response.append("\n🔊 [Audio Pronunciation](").append(audio).append(")");
             }
 
+            // Optional: Warn if translation equals input
+            if (translated.equalsIgnoreCase(text)) {
+                response.append("\n⚠️ Translation looks identical to input. Check your languages!");
+            }
+
             SendMessage msg = new SendMessage();
             msg.setChatId(chatId.toString());
             msg.setText(response.toString());
@@ -173,6 +184,7 @@ public class TranslateBot extends TelegramLongPollingBot {
             sendTextMessage(chatId, "❌ Translation failed");
         }
     }
+
     private void sendTextMessage(Long chatId, String text) {
         SendMessage message = new SendMessage(chatId.toString(), text);
         try {

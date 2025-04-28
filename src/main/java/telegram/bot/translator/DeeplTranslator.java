@@ -17,7 +17,7 @@ public class DeeplTranslator {
     private final String apiKey;
 
     public DeeplTranslator() {
-           this.apiKey = System.getenv("DEEPL_API_KEY") != null
+        this.apiKey = System.getenv("DEEPL_API_KEY") != null
                 ? System.getenv("DEEPL_API_KEY")
                 : Dotenv.load().get("DEEPL_API_KEY");
     }
@@ -43,7 +43,8 @@ public class DeeplTranslator {
                 os.write(params.toString().getBytes(StandardCharsets.UTF_8));
             }
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 String response = reader.lines().collect(Collectors.joining());
                 JSONObject json = new JSONObject(response);
                 return json.getJSONArray("translations")
@@ -56,5 +57,4 @@ public class DeeplTranslator {
             return "❌ Failed to translate.";
         }
     }
-
 }
