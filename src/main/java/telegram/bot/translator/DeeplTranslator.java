@@ -26,12 +26,13 @@ public class DeeplTranslator {
         try {
             URL url = new URL("https://api-free.deepl.com/v2/translate");
 
-            String urlParams = String.format("auth_key=%s&text=%s&source_lang=%s&target_lang=%s",
-                    URLEncoder.encode(apiKey, StandardCharsets.UTF_8),
-                    URLEncoder.encode(text, StandardCharsets.UTF_8),
-                    sourceLang.toUpperCase(),
-                    targetLang.toUpperCase()
-            );
+            StringBuilder params = new StringBuilder();
+            params.append("auth_key=").append(URLEncoder.encode(apiKey, StandardCharsets.UTF_8));
+            params.append("&text=").append(URLEncoder.encode(text, StandardCharsets.UTF_8));
+            if (sourceLang != null && !sourceLang.isEmpty()) {
+                params.append("&source_lang=").append(sourceLang.toUpperCase());
+            }
+            params.append("&target_lang=").append(targetLang.toUpperCase());
 
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
@@ -39,11 +40,10 @@ public class DeeplTranslator {
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
             try (OutputStream os = conn.getOutputStream()) {
-                os.write(urlParams.getBytes(StandardCharsets.UTF_8));
+                os.write(params.toString().getBytes(StandardCharsets.UTF_8));
             }
 
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 String response = reader.lines().collect(Collectors.joining());
                 JSONObject json = new JSONObject(response);
                 return json.getJSONArray("translations")
@@ -56,4 +56,5 @@ public class DeeplTranslator {
             return "❌ Failed to translate.";
         }
     }
+
 }

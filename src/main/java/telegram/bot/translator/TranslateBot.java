@@ -21,6 +21,15 @@ public class TranslateBot extends TelegramLongPollingBot {
 
     DeeplTranslator translator;
 
+    private boolean isProbablyCyrillic(String text) {
+        return text != null && text.matches(".*\\p{IsCyrillic}.*");
+    }
+
+    private boolean isProbablyLatin(String text) {
+        return text != null && text.matches(".*\\p{IsLatin}.*");
+    }
+
+
     private final String botName = System.getenv("TRANSLATE_BOT_NAME") != null
             ? System.getenv("TRANSLATE_BOT_NAME")
             : Dotenv.load().get("TRANSLATE_BOT_NAME");
@@ -125,8 +134,18 @@ public class TranslateBot extends TelegramLongPollingBot {
 
             String sourceLang = preferenceRepo.getSourceLang(userId);
             String targetLang = preferenceRepo.getTargetLang(userId);
-            if (sourceLang == null) sourceLang = "EN";
-            if (targetLang == null) targetLang = "RU";
+
+            if (sourceLang.equalsIgnoreCase("RU") && !isProbablyCyrillic(text)) {
+                // Expected Russian, but text is not Cyrillic
+                sourceLang = null; // Let DeepL auto-detect
+                sendTextMessage(chatId, "🔍 Auto-detecting input language...");
+            }
+
+            if (sourceLang.equalsIgnoreCase("EN") && isProbablyCyrillic(text)) {
+                // Expected English, but text is Cyrillic
+                sourceLang = null; // Let DeepL auto-detect
+                sendTextMessage(chatId, "🔍 Auto-detecting input language...");
+            }
 
             String ipa = WordHelper.getIPAFromWiktionary(input, sourceLang);
             String audio = WordHelper.getAudioUrl(input);
