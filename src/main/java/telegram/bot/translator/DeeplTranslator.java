@@ -42,7 +42,8 @@ public class DeeplTranslator {
                 os.write(urlParams.getBytes(StandardCharsets.UTF_8));
             }
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 String response = reader.lines().collect(Collectors.joining());
                 JSONObject json = new JSONObject(response);
                 return json.getJSONArray("translations")

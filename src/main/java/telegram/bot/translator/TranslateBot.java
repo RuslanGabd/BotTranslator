@@ -97,7 +97,6 @@ public class TranslateBot extends TelegramLongPollingBot {
                     preferenceRepo.savePreferences(userId, preferenceRepo.getSourceLang(userId), cleaned);
                     sendTextMessage(chatId, "✅ Target language set to " + cleaned);
 
-                    // If source not set, immediately ask
                     if (preferenceRepo.getSourceLang(userId) == null) {
                         languageSetMode.put(userId, "source");
                         sendTextMessage(chatId, "📥 Now select your source language:");
